@@ -5,7 +5,30 @@
 
 using namespace std;
 using namespace cv;
+Mat src1, src2;
+Mat camFrame, camFrameGray;
+Mat mask, edgeDetected;
+int lowThreshold;
+int ratio = 3;
+int kernalSize = 3;
+Mat blendFrame;
+
+void onTrackBar(int, void*) {
+
+	double alpha = (double)lowThreshold / 100.0;
+	double beta = 1.0 - alpha;
+	
+	blur(camFrameGray, edgeDetected, Size(3, 3));
+	Canny(edgeDetected, edgeDetected, lowThreshold, lowThreshold * ratio, kernalSize);
+	mask = Scalar::all(0);
+	camFrame.copyTo(mask, edgeDetected);
+
+	addWeighted(mask, alpha, camFrame, beta, 0.0, blendFrame);
+}
 int main() {
+	int maxSlider = 100;
+	namedWindow("edge detection", 0);
+	createTrackbar("ratio", "edge detection", &lowThreshold, maxSlider, onTrackBar);
 	VideoCapture cam(0);
 	VideoCapture cap("video.mp4");
 	if (!cam.isOpened()) {
@@ -19,19 +42,19 @@ int main() {
 	Mat edges;
 	Mat frame;
 	int camSize = 300;
+	lowThreshold = 0;
 	for (;;) {
-		Mat camFrame;
 		cam >> camFrame;
 		resize(camFrame, camFrame, Size(camSize, camSize));
-		//imshow("Camera", camFrame);
-		//if (waitKey(30) >= 0) break;
+		mask.create(camFrame.size(), camFrame.type());
+		cvtColor(camFrame, camFrameGray, CV_BGR2GRAY);
+		onTrackBar(lowThreshold, 0);
 		cap.read(frame);
-		camFrame.copyTo(frame(Rect(0, 0, camSize, camSize)));
-		if (frame.rows > 0) imshow("Video", frame);
+		blendFrame.copyTo(frame(Rect(0, 0, camSize, camSize)));
+		if (frame.rows > 0) imshow("edge detection", frame);
 		else break;
 		if(waitKey(10) >= 0) break;
 	}
-	//namedWindow("Camera", 1);
 	
 	return 0;
 }
